@@ -4,19 +4,33 @@
 
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: "Geist Pixel Square", ui-monospace, monospace;
   --font-display: "Cal Sans", "Inter Variable", ui-sans-serif, sans-serif;
+}
+
+/* Dark mode is toggled by a `dark` class on <html> (set before paint in Layout). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --page-bg: #fff;
+  --thin-page: #fff;
+}
+.dark {
+  --page-bg: #0a0a0a;
+  --thin-page: #0a0a0a;
+  color-scheme: dark;
 }
 
 @layer base {
   body {
-    @apply bg-white font-sans text-black antialiased;
+    @apply bg-(--page-bg) font-sans text-black antialiased dark:text-neutral-100;
   }
 }
 
 /* Cal Sans ships in a single weight; paint a thin background-coloured outline over the glyphs to lighten them. */
 @layer utilities {
   .thin-display {
-    -webkit-text-stroke: 0.015em var(--thin-bg, #fff);
+    -webkit-text-stroke: 0.015em var(--thin-bg, var(--thin-page));
   }
 }
 
@@ -98,4 +112,12 @@
     outline-offset: 2px;
     border-radius: 8px;
   }
+}
+
+@font-face {
+  font-family: "Geist Pixel Square";
+  src: url("../assets/fonts/GeistPixel-Square.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }

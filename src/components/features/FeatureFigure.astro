@@ -1,0 +1,40 @@
+---
+import '../../styles/figures.css';
+import { figures, type FigureName } from './figures';
+
+interface Props {
+	name: FigureName;
+}
+
+const { svg, css } = figures[Astro.props.name];
+---
+
+<svg class="fg" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid meet" aria-hidden="true" set:html={svg} />
+<style is:inline set:html={css}></style>
+
+<script>
+	// The record counter follows the progress ring's own animation, so the two stay in step.
+	const ring = document.querySelector<SVGElement>('[data-fg-count]')?.parentElement?.querySelector<SVGElement>('.fg-ring');
+	const out = document.querySelector<SVGTextElement>('[data-fg-count]');
+	if (ring && out) {
+		const tick = () => {
+			const p = ring.getAnimations()[0]?.effect?.getComputedTiming().progress ?? 0;
+			const n = Math.round(Math.min(1, p / 0.9) * 2_000_000);
+			out.textContent = n.toLocaleString('en-US');
+			requestAnimationFrame(tick);
+		};
+		requestAnimationFrame(tick);
+	}
+
+	// A click replays each figure's one-shot effect: the class is re-added so the animations restart.
+	const timers = new WeakMap<Element, number>();
+	document.addEventListener('click', (e) => {
+		const host = (e.target as Element).closest<HTMLElement>('.fg-host');
+		if (!host) return;
+		host.classList.remove('fg-click');
+		void host.offsetWidth;
+		host.classList.add('fg-click');
+		clearTimeout(timers.get(host));
+		timers.set(host, window.setTimeout(() => host.classList.remove('fg-click'), 2300));
+	});
+</script>

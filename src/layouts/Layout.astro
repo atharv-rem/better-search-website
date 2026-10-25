@@ -1,5 +1,32 @@
 ---
 import '../styles/global.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const {
+	title = 'Better Search: clean, super fast file search for Windows',
+	description = 'Better Search is a 30mb, private and local file search app for Windows. It indexes 2 million files in about 10s, searches in 10-100ms, and uses ~10-17mb of memory and 0% idle CPU.',
+} = Astro.props;
+
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const abs = (path: string) => (Astro.site ? new URL(path, Astro.site).href : path);
+const ogImage = abs('/og-image.png');
+
+const jsonLd = {
+	'@context': 'https://schema.org',
+	'@type': 'SoftwareApplication',
+	name: 'Better Search',
+	description,
+	applicationCategory: 'UtilitiesApplication',
+	operatingSystem: 'Windows',
+	image: ogImage,
+	offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	codeRepository: 'https://github.com/atharv-rem/better-search',
+	...(canonical && { url: canonical }),
+};
 ---
 
 <!doctype html>
@@ -8,9 +35,44 @@ import '../styles/global.css';
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="icon" href="/favicon.ico" sizes="48x48" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Better Search</title>
+
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta name="robots" content="index, follow" />
+		<meta name="author" content="Atharv Remeshan" />
+		{canonical && <link rel="canonical" href={canonical} />}
+
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Better Search" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Better Search: clean, super fast search for Windows" />
+		{canonical && <meta property="og:url" content={canonical} />}
+
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+
+		<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+		<script is:inline>
+			// Apply the saved (or system) theme before first paint to avoid a flash.
+			try {
+				var saved = localStorage.getItem('theme');
+				var dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+				document.documentElement.classList.toggle('dark', dark);
+			} catch (e) {}
+		</script>
 	</head>
 	<body>
 		<slot />
