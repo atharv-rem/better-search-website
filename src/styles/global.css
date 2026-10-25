@@ -1,0 +1,101 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/cal-sans";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cal Sans", "Inter Variable", ui-sans-serif, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-white font-sans text-black antialiased;
+  }
+}
+
+/* Cal Sans ships in a single weight; paint a thin background-coloured outline over the glyphs to lighten them. */
+@layer utilities {
+  .thin-display {
+    -webkit-text-stroke: 0.015em var(--thin-bg, #fff);
+  }
+}
+
+/* ---- Search demo: the app's look (atharv-rem/better-search, App.css) ---- */
+
+@font-face {
+  font-family: "Inter Tight";
+  /* Latin subset of the variable font, as the app ships it. */
+  src: url("../assets/fonts/inter-tight.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --animate-rise-in: rise-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade-in: fade-in 160ms ease-out both;
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.985);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* The tokens live on the demo, not :root, so they don't touch the page. The
+   menu the demo opens is portalled to <body>, so it carries the class too. */
+.bs-demo {
+  /* The window is drawn bigger than the app's own size on a wide page. */
+  --demo-scale: 1;
+  --hover: rgb(255 255 255 / 0.06);
+  --active: rgb(255 255 255 / 0.1);
+  --focus-ring: #6b97ff;
+  --fs-subtitle-compact: 13px;
+  --lh-subtitle-compact: 18px;
+  --fs-caption-compact: 11px;
+  --lh-caption-compact: 14px;
+
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+}
+
+@media (min-width: 640px) {
+  .bs-demo {
+    --demo-scale: 1.2;
+  }
+}
+
+.bs-demo textarea {
+  user-select: text;
+}
+
+.bs-demo,
+.bs-demo * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bs-demo ::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* In the base layer, as in the app, so `outline-none` on the search box wins. */
+@layer base {
+  .bs-demo :focus-visible,
+  .bs-demo:focus-visible {
+    outline: 1px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+}

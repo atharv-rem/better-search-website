@@ -1,0 +1,101 @@
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { fontWeights } from "./font-weight";
+import { cn } from "./cn";
+
+// The search bar: a textarea that grows with its text up to `maxRows`, over a
+// row of buttons. It looks like the compact InputMessage it replaces, without
+// that chat composer's queue, attachments and suggestions (and the animation
+// library and PDF renderer they pulled into every window).
+
+interface SearchBoxProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  maxRows?: number;
+  /** Under the text, on the left: a hint. */
+  leftSlot?: ReactNode;
+  /** Under the text, on the right: buttons. */
+  rightSlot?: ReactNode;
+  className?: string;
+  textareaClassName?: string;
+  style?: CSSProperties;
+}
+
+export const SearchBox = forwardRef<HTMLDivElement, SearchBoxProps>(
+  ({ value, onValueChange, placeholder, maxRows = 4, leftSlot, rightSlot, className, textareaClassName, style }, ref) => {
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const lineHeight = useRef(0);
+
+    const resize = useCallback(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      if (!lineHeight.current) lineHeight.current = parseFloat(getComputedStyle(el).lineHeight) || 18;
+      el.style.height = "auto";
+      const max = lineHeight.current * maxRows;
+      el.style.height = `${Math.min(Math.max(el.scrollHeight, lineHeight.current), max)}px`;
+      el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden";
+    }, [maxRows]);
+
+    useLayoutEffect(resize, [value, resize]);
+
+    // A width change rewraps the text. Width only, so the observer doesn't
+    // react to its own height writes.
+    useEffect(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      let width = el.offsetWidth;
+      const observer = new ResizeObserver(() => {
+        if (el.offsetWidth === width) return;
+        width = el.offsetWidth;
+        resize();
+      });
+      observer.observe(el);
+      return () => observer.disconnect();
+    }, [resize]);
+
+    return (
+      <div
+        ref={ref}
+        // A click anywhere on the bar but its buttons types into it.
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          if (target === textareaRef.current || target.closest("button")) return;
+          e.preventDefault();
+          textareaRef.current?.focus();
+        }}
+        className={cn(
+          "flex cursor-text flex-col gap-1 rounded-xl p-2 transition-[box-shadow,color] duration-80",
+          className
+        )}
+        style={style}
+      >
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={placeholder}
+          rows={1}
+          aria-label="Search"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          className={cn(
+            "w-full resize-none rounded-none bg-transparent px-1.5 py-1.5 outline-none",
+            "text-[length:var(--fs-subtitle-compact,13px)] leading-[var(--lh-subtitle-compact,18px)]",
+            "pointer-coarse:text-[16px]",
+            textareaClassName
+          )}
+          style={{ fontVariationSettings: fontWeights.normal }}
+        />
+        <div className="flex items-center gap-1.5 [&_button]:h-6 [&_button]:text-[length:var(--fs-caption-compact,11px)] [&_button]:leading-[var(--lh-caption-compact,14px)] [&_button.w-7]:w-6">
+          {leftSlot}
+          {/* ml-auto: the buttons stay right with or without a hint. */}
+          <div className="ml-auto flex items-center gap-1.5">{rightSlot}</div>
+        </div>
+      </div>
+    );
+  }
+);
+
+SearchBox.displayName = "SearchBox";
