@@ -4,6 +4,7 @@ import AppDemo from '../components/demo/AppDemo';
 import GithubLogo from '../assets/icons/GithubLogo.svg';
 import Logo from '../assets/icons/logo.svg';
 import FileDownload from '../assets/icons/file-download-outline.svg';
+import Changelog from '../components/changelog/Changelog';
 import FeatureFigure from '../components/features/FeatureFigure.astro';
 
 const repoUrl = 'https://github.com/atharv-rem/better-search';
@@ -88,6 +89,15 @@ const features = [
 				}
 			</ul>
 		</section>
+
+		<section class="mt-24 sm:mt-[150px]" aria-labelledby="changelog-heading">
+			<h2 id="changelog-heading" class="thin-display font-display text-3xl leading-[1.05] tracking-tight text-neutral-800 dark:text-neutral-100 sm:text-[2.6rem]">
+				changelog <span class="text-neutral-500 dark:text-neutral-400">of every<br />release</span>
+			</h2>
+			<div class="mt-9">
+				<Changelog client:visible />
+			</div>
+		</section>
 	</main>
 
 	<section class="mx-auto mb-16 grid w-full max-w-[1130px] gap-10 px-5 sm:mb-24 sm:grid-cols-2 sm:gap-6 sm:px-10">
@@ -122,16 +132,38 @@ const features = [
 	// the latest Windows installer instead. Asset names carry the version, so
 	// the link can't be fixed ahead of time. If the lookup fails (offline, or
 	// GitHub's rate limit), the release page link stays.
+	//
+	// The resolved URL is cached in localStorage so repeat visits point the
+	// button at the installer immediately and skip the API call (it's
+	// rate-limited to 60 requests/hour per IP). A fresh entry is used as is;
+	// a stale one is applied right away and then refreshed in the background.
 	const link = document.querySelector<HTMLAnchorElement>('#download-link');
 	if (link?.dataset.repo) {
-		fetch(`https://api.github.com/repos/${link.dataset.repo}/releases/latest`, {
-			headers: { Accept: 'application/vnd.github+json' },
-		})
-			.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-			.then((release: { assets: { name: string; browser_download_url: string }[] }) => {
-				const installer = release.assets.find((a) => a.name.endsWith('-setup.exe'));
-				if (installer) link.href = installer.browser_download_url;
+		const CACHE_KEY = 'installer-url';
+		const MAX_AGE = 60 * 60 * 1000;
+
+		let cached: { url: string; time: number } | null = null;
+		try {
+			const raw = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null');
+			if (typeof raw?.url === 'string' && typeof raw?.time === 'number') cached = raw;
+		} catch {}
+
+		if (cached) link.href = cached.url;
+
+		if (!cached || Date.now() - cached.time > MAX_AGE) {
+			fetch(`https://api.github.com/repos/${link.dataset.repo}/releases/latest`, {
+				headers: { Accept: 'application/vnd.github+json' },
 			})
-			.catch(() => {});
+				.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+				.then((release: { assets: { name: string; browser_download_url: string }[] }) => {
+					const installer = release.assets.find((a) => a.name.endsWith('-setup.exe'));
+					if (!installer) return;
+					link.href = installer.browser_download_url;
+					try {
+						localStorage.setItem(CACHE_KEY, JSON.stringify({ url: installer.browser_download_url, time: Date.now() }));
+					} catch {}
+				})
+				.catch(() => {});
+		}
 	}
 </script>

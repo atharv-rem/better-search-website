@@ -72,6 +72,24 @@ function searchWeb(text: string) {
 
 const focusSearch = (root: HTMLElement | null) => root?.querySelector("textarea")?.focus({ preventScroll: true });
 
+/** What the demo plays on hover, one after another and round again: types the
+ *  query, steps down the results (the preview follows), then clicks one. */
+const AUTOPLAY_QUERIES = ["screenshot", "report", "app"];
+const AUTOPLAY_TYPE_MS = 90;
+
+const abortable = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true }
+    );
+  });
+
 /** The app's memory reading: unknown for the first moments after opening, then
  *  a number. In the demo the number is made up (it sits where the app's own
  *  sits, around 14 MB, and drifts a little). */
@@ -104,7 +122,9 @@ export default function AppDemo() {
   const queryRef = useRef(query);
   queryRef.current = query;
   const searchRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const searchSeq = useRef(0);
+  const autoplay = useRef<AbortController | null>(null);
 
   const [savedBrowser, setSavedBrowser] = useState(DEFAULT_BROWSER.id);
   const browsers = MOCK_BROWSERS;
@@ -182,6 +202,57 @@ export default function AppDemo() {
     },
     [remember, say]
   );
+
+  const visibleCount = useRef(0);
+  visibleCount.current = visible.length;
+
+  /** Plays the hover demo until stopped. Starts only on an empty box, so it
+   *  never replaces something the visitor typed. */
+  const startAutoplay = useCallback(() => {
+    if (autoplay.current || queryRef.current !== "" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ctrl = new AbortController();
+    autoplay.current = ctrl;
+    const wait = (ms: number) => abortable(ms, ctrl.signal);
+
+    (async () => {
+      try {
+        for (let n = 0; ; n++) {
+          const text = AUTOPLAY_QUERIES[n % AUTOPLAY_QUERIES.length];
+          await wait(500);
+          for (let i = 1; i <= text.length; i++) {
+            setQuery(text.slice(0, i));
+            await wait(AUTOPLAY_TYPE_MS);
+          }
+          await wait(800);
+          let at = 0;
+          for (const next of [1, 2]) {
+            if (next >= visibleCount.current) break;
+            at = next;
+            setActiveIndex(at);
+            await wait(1000);
+          }
+          rootRef.current?.querySelector<HTMLElement>(`[role="option"][data-index="${at}"]`)?.click();
+          await wait(2200);
+          setQuery("");
+          await wait(300);
+        }
+      } catch {
+        // Stopped.
+      }
+    })();
+  }, []);
+
+  /** Stops the hover demo; `reset` also puts the window back as it was. */
+  const stopAutoplay = useCallback((reset: boolean) => {
+    if (!autoplay.current) return;
+    autoplay.current.abort();
+    autoplay.current = null;
+    if (reset) {
+      setQuery("");
+      setToast(null);
+    }
+  }, []);
+  useEffect(() => () => autoplay.current?.abort(), []);
 
   /** Runs a recent web search again, as Enter on it would. */
   const runRecentWeb = (text: string) => {
@@ -298,7 +369,14 @@ export default function AppDemo() {
   return (
     // The Escape the app answers by hiding its window clears the box here.
     <div
+      ref={rootRef}
       className="bs-demo dark absolute inset-0 overflow-hidden"
+      // Hover plays the demo (mouse only: a tap shouldn't start a loop with no
+      // way to end it). Using the window for real hands it over.
+      onPointerEnter={(e) => e.pointerType === "mouse" && startAutoplay()}
+      onPointerLeave={() => stopAutoplay(true)}
+      onPointerDownCapture={() => stopAutoplay(false)}
+      onKeyDownCapture={() => stopAutoplay(false)}
       onKeyDown={(e) => {
         if (e.key === "Escape" && !e.defaultPrevented) setQuery("");
       }}

@@ -1,5 +1,11 @@
 ---
 import '../styles/global.css';
+// Fonts used at first paint. Imported with ?url so the preload links point at the same hashed files the CSS loads.
+import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import calSansLatin from '@fontsource/cal-sans/files/cal-sans-latin-400-normal.woff2?url';
+import interTight from '../assets/fonts/inter-tight.woff2?url';
+
+const preloadFonts = [interLatin, calSansLatin, interTight];
 
 interface Props {
 	title?: string;
@@ -41,6 +47,8 @@ const jsonLd = {
 		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
 		<meta name="generator" content={Astro.generator} />
+
+		{preloadFonts.map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 
 		<title>{title}</title>
 		<meta name="description" content={description} />
