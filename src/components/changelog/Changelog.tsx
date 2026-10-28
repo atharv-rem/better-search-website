@@ -1,15 +1,24 @@
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BranchGraph } from "@/components/branch-graph";
 import { Button } from "@/components/ui/button";
-import { releases } from "./versions";
+import { loadReleases } from "./github";
+import { releases as fallback } from "./versions";
 
 const PAGE = 3;
 // Newest commits kept per version; the rest of that version's history is trimmed.
 const MAX_COMMITS = 6;
 
-export default function Changelog() {
+export default function Changelog({ repo }: { repo: string }) {
+	const [releases, setReleases] = useState(fallback);
 	const [start, setStart] = useState(0);
+
+	useEffect(() => {
+		loadReleases(repo)
+			.then((live) => live.length && setReleases(live))
+			.catch(() => {});
+	}, [repo]);
+
 	const shown = releases.slice(start, start + PAGE);
 	const commits = useMemo(
 		() =>
@@ -21,7 +30,7 @@ export default function Changelog() {
 				kept[kept.length - 1] = { ...kept[kept.length - 1], parents: next ? [next.sha] : [] };
 				return kept;
 			}),
-		[start],
+		[releases, start],
 	);
 	const canNewer = start > 0;
 	const canOlder = start + PAGE < releases.length;

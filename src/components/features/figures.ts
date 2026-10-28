@@ -1,3 +1,5 @@
+import fish from '../../assets/app-icon-fish.png';
+import { cloud, flame, frame, gear } from './app-icons';
 import { iso } from './iso';
 
 // Each figure is drawn into a 340x190 box: hairline in near-black, with Vercel blue
@@ -384,6 +386,254 @@ function search(): Figure {
 	return { svg: fit(svg, 138, 81, 1.25), css };
 }
 
+// alt + s, instant opening: a minimal full keyboard where only Alt and S are lit. They press in a loop (Alt, a pulse across, then S and a ring); hover holds them down and a click replays it.
+function altS(): Figure {
+	const k = iso(0, 0);
+	const U = 15; // key pitch
+	const M = 5; // case margin
+	const Z = 4; // case height
+	const H = 5; // key height
+	const KD = U - 2; // key depth
+	const W = 15 * U + 2 * M;
+	const D = 5 * U + 2 * M;
+
+	// Key widths per row, in units of the pitch. Each row adds up to 15.
+	const rows: number[][] = [
+		[...Array(13).fill(1), 2],
+		[1.5, ...Array(12).fill(1), 1.5],
+		[1.75, ...Array(11).fill(1), 2.25],
+		[2.25, ...Array(10).fill(1), 2.75],
+		[1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25],
+	];
+	// Alt is the third key on the bottom row, S the third on the home row.
+	const lit: Record<string, { id: string; label: string }> = {
+		'2,2': { id: 's', label: 'S' },
+		'4,2': { id: 'a', label: 'Alt' },
+	};
+
+	let keys = '';
+	let litKeys = '';
+	const pos: Record<string, { x: number; y: number; w: number }> = {};
+	rows.forEach((widths, r) => {
+		let u = 0;
+		widths.forEach((w, c) => {
+			const x = M + u * U;
+			const y = M + r * U;
+			const kw = w * U - 2;
+			u += w;
+			const hot = lit[`${r},${c}`];
+			if (!hot) {
+				keys += k.box(x, y, Z, kw, KD, H, 'fg-as-p');
+				return;
+			}
+			pos[hot.id] = { x, y, w: kw };
+			// Lit keys are drawn last so the glow is never covered by a neighbour.
+			litKeys +=
+				`<g class="fg-as-key fg-as-k${hot.id}"><g class="glow">` +
+				k.box(x, y, Z, kw, KD, H, 'a') +
+				`<g transform="${k.TOP(x, y, Z + H)}"><text class="t" style="fill:#fff" x="${kw / 2}" y="${KD / 2 + 3}" text-anchor="middle">${hot.label}</text></g>` +
+				`</g></g>`;
+		});
+	});
+
+	const centre = ({ x, y, w }: { x: number; y: number; w: number }) => k.P(x + w / 2, y + KD / 2, Z + H + 0.5);
+	const [ax, ay] = centre(pos.a);
+	const [sx, sy] = centre(pos.s);
+	const link = `M${ax} ${ay}L${sx} ${sy}`;
+
+	const svg =
+		k.box(0, 0, 0, W, D, Z, 'fg-as-p') +
+		keys +
+		`<g class="glow"><path class="fg-as-pulse" pathLength="100" d="${link}"/></g>` +
+		litKeys +
+		`<g class="glow"><g transform="${k.TOP(pos.s.x, pos.s.y, Z + H)}"><circle class="fg-as-ring" cx="${pos.s.w / 2}" cy="${KD / 2}" r="7"/></g></g>`;
+
+	const css = `
+.fg .fg-as-p{fill:var(--fg-paper);stroke:var(--fg-dim);stroke-width:1;stroke-linejoin:round}
+.fg-as-key{cursor:pointer;transition:transform .12s ease-out}
+.fg-as-ka{animation:fg-as-dnA 3.6s ease-in-out infinite}
+.fg-as-ks{animation:fg-as-dnS 3.6s ease-in-out infinite}
+.fg-as-pulse{fill:none;stroke:var(--fg-acc);stroke-width:2.2;stroke-linecap:round;vector-effect:none;stroke-dasharray:8 100;stroke-dashoffset:8;animation:fg-as-pulse 3.6s linear infinite}
+.fg-as-ring{fill:none;stroke:var(--fg-acc);stroke-width:1.6;transform-box:fill-box;transform-origin:center;opacity:0;animation:fg-as-ring 3.6s ease-out infinite}
+@keyframes fg-as-dnA{0%,10%{transform:translateY(0)}13%,62%{transform:translateY(3px)}68%,100%{transform:translateY(0)}}
+@keyframes fg-as-dnS{0%,26%{transform:translateY(0)}29%,64%{transform:translateY(3px)}70%,100%{transform:translateY(0)}}
+@keyframes fg-as-pulse{0%,14%{stroke-dashoffset:8}26%,100%{stroke-dashoffset:-100}}
+@keyframes fg-as-ring{0%,26%{opacity:0;transform:scale(1)}28%{opacity:.9;transform:scale(1)}52%,100%{opacity:0;transform:scale(3.4)}}
+.fg-host:hover .fg-as-key{animation:none;transform:translateY(3px)}
+.fg-host.fg-click .fg-as-key{animation:fg-as-dn1 .9s ease-in-out both}
+.fg-host.fg-click .fg-as-ks{animation-delay:.45s}
+.fg-host.fg-click .fg-as-pulse{animation:fg-as-pulse1 .4s linear .1s both}
+.fg-host.fg-click .fg-as-ring{animation:fg-as-ring1 .9s ease-out .45s forwards}
+@keyframes fg-as-dn1{0%,100%{transform:translateY(0)}10%,70%{transform:translateY(3px)}}
+@keyframes fg-as-pulse1{0%{stroke-dashoffset:8}100%{stroke-dashoffset:-100}}
+@keyframes fg-as-ring1{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(3.4)}}`;
+	return { svg: fit(svg, 65, 75, 1.0), css };
+}
+
+// alt + w, snap opening: translucent windows snap into place one after another, then the cursor clicks across them.
+function snapOpen(): Figure {
+	// [x, y, fill-opacity], back to front.
+	const wins = [
+		[58, 72, 0.88],
+		[115, 35, 0.94],
+		[187, 55, 0.57],
+		[139, 92, 0.74],
+	] as const;
+
+	let svg = '';
+	let css = '';
+	wins.forEach(([x, y, o], i) => {
+		const a = i * 8;
+		svg +=
+			`<g class="fg-win fg-win${i}" style="--d:${(i * 0.12).toFixed(2)}s">` +
+			`<rect x="${x}" y="${y}" width="96" height="66" rx="5" style="fill:var(--fg-win,var(--fg-paper));stroke:var(--fg-faint)" fill-opacity="${o}"/>` +
+			`<path fill="var(--fg-acc)" stroke="none" d="M${x} ${y + 5}C${x} ${y + 2.76} ${x + 2.24} ${y} ${x + 5} ${y}H${x + 91}C${x + 93.76} ${y} ${x + 96} ${y + 2.76} ${x + 96} ${y + 5}V${y + 8}H${x}V${y + 5}Z"/>` +
+			[5.5, 10.5, 15.5].map((dx) => `<circle cx="${x + dx}" cy="${y + 4.5}" r="1.5" fill="#fff" stroke="none"/>`).join('') +
+			`</g>`;
+		css += `.fg-win${i}{animation:fg-win${i} 6s cubic-bezier(.2,.8,.2,1) infinite}`;
+		css += `@keyframes fg-win${i}{0%,${a}%{opacity:0;transform:translateY(8px) scale(.9)}${a + 6}%,90%{opacity:1;transform:none}96%,100%{opacity:0;transform:none}}`;
+	});
+
+	svg +=
+		`<path class="fg-cur" d="M184.971 160.989L192.898 158.465C193.316 158.332 193.373 157.765 192.99 157.552L176.951 148.618C176.579 148.41 176.135 148.733 176.217 149.151L179.747 167.107C179.833 167.545 180.407 167.659 180.654 167.287L184.706 161.188C184.769 161.093 184.862 161.023 184.971 160.989Z"/>`;
+
+	css += `
+.fg-win{transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 4px 6px rgb(0 0 0/.08))}
+.dark .fg-win{--fg-win:#303030}
+.fg-cur{fill:var(--fg-ink);stroke:var(--fg-paper);stroke-width:1.5;stroke-linejoin:round;transform-box:fill-box;transform-origin:0 0;filter:drop-shadow(2px 3px 3px rgb(0 0 0/.3));animation:fg-cur 6s cubic-bezier(.4,0,.2,1) infinite}
+/* The tip rests on the front window, then clicks its way across the others and back. */
+@keyframes fg-cur{
+0%,26%{opacity:0;transform:translate(14px,12px)}
+32%,34%{opacity:1;transform:translate(0,0)}
+36%{transform:translate(0,0) scale(.85)}
+39%{transform:translate(0,0)}
+47%{transform:translate(-86px,-39px)}
+50%{transform:translate(-86px,-39px) scale(.85)}
+53%{transform:translate(-86px,-39px)}
+61%{transform:translate(-16px,-84px)}
+64%{transform:translate(-16px,-84px) scale(.85)}
+67%{transform:translate(-16px,-84px)}
+75%{transform:translate(69px,-59px)}
+78%{transform:translate(69px,-59px) scale(.85)}
+81%{transform:translate(69px,-59px)}
+89%,94%{opacity:1;transform:translate(0,0)}
+98%,100%{opacity:0;transform:translate(0,0)}}
+.fg-host.fg-click .fg-win{animation:fg-snap .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d)}
+@keyframes fg-snap{0%{opacity:0;transform:translateY(8px) scale(.9)}100%{opacity:1;transform:none}}`;
+	return { svg: fit(svg, 170.5, 101, 1.3), css };
+}
+
+// instant web search: a grid of files where the matches pop in, one after another, as if typed. The four marks are the providers behind web search.
+function instantSearch(): Figure {
+	const W = 43;
+	const H = 39;
+	const R = 5;
+
+	// Tile origins from the artwork: columns 51 apart and rows 47 apart (an 8 gap), the lower row shifted half a tile.
+	const row1 = [13, 63, 114, 165, 216, 267, 318];
+	const row2 = [-17, 33, 84, 135, 186, 237, 288];
+	// Matches in the order they light up; `icon` draws the app mark centred on the tile.
+	const hits = [
+		{ x: 63, y: 35, icon: `<path fill="#0143D9" fill-rule="evenodd" d="${frame}"/>` },
+		{ x: 135, y: 82, icon: `<image href="${fish.src}" x="${135 + 21.5 - 12}" y="${82 + 19.5 - 12}" width="24" height="24"/>` },
+		{ x: 216, y: 35, icon: `<path fill="#FA5D19" d="${flame}"/>` },
+		{ x: 237, y: 82, icon: `<path transform="translate(0 3)" fill="#2563EB" d="${cloud}"/>` },
+	];
+
+	let tiles = '';
+	for (const [y, xs] of [[35, row1], [82, row2]] as const) {
+		for (const x of xs) tiles += `<rect class="fg-is-t" x="${x}" y="${y}" width="${W}" height="${H}" rx="${R}"/>`;
+	}
+
+	let cards = '';
+	hits.forEach(({ x, y, icon }, i) => {
+		cards +=
+			`<g class="fg-is-hit" style="--d:${(i * 0.16).toFixed(2)}s">` +
+			`<rect class="fg-is-card" x="${x + 0.25}" y="${y + 0.25}" width="${W - 0.5}" height="${H - 0.5}" rx="${R - 0.25}"/>` +
+			icon +
+			`</g>`;
+	});
+
+	// Rows run off both ends of the artwork, so the grid is cut to its frame.
+	const svg = `<clipPath id="fg-is-clip"><rect width="341" height="190"/></clipPath><g clip-path="url(#fg-is-clip)">${tiles}${cards}</g>`;
+
+	const css = `
+.fg-is-t{fill:#f4f4f4;transition:fill .2s}
+.fg-host:hover .fg-is-t{fill:#e8e8e8}
+.dark .fg-is-t{fill:#1a1a1a}
+.dark .fg-host:hover .fg-is-t{fill:#262626}
+.fg-is-card{fill:#fff;stroke:#eaeaea;stroke-width:.5}
+.dark .fg-is-card{fill:#2a2a2a;stroke:#3d3d3d}
+.fg-is-hit{transform-box:fill-box;transform-origin:center;opacity:0;animation:fg-is-hit 6s cubic-bezier(.2,.8,.2,1) infinite;animation-delay:var(--d)}
+.fg-is-hit .fg-is-card{animation:fg-is-ring 6s ease-out infinite;animation-delay:var(--d)}
+@keyframes fg-is-hit{0%,4%{opacity:0;transform:translateY(6px) scale(.92)}10%,86%{opacity:1;transform:none}94%,100%{opacity:0;transform:none}}
+@keyframes fg-is-ring{0%,4%{stroke:var(--fg-acc);stroke-width:1.2}16%,100%{stroke-width:.5}}
+.fg-host:hover .fg-is-hit,.fg-host:hover .fg-is-hit .fg-is-card{animation:none}
+.fg-host:hover .fg-is-hit{opacity:1}
+.fg-host.fg-click .fg-is-hit{animation:fg-is-in .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:var(--d)}
+.fg-host.fg-click .fg-is-hit .fg-is-card{animation:fg-is-flash 1s ease-out both;animation-delay:var(--d)}
+@keyframes fg-is-in{0%{opacity:0;transform:translateY(6px) scale(.92)}100%{opacity:1;transform:none}}
+@keyframes fg-is-flash{0%{stroke:var(--fg-acc);stroke-width:1.2}100%{stroke-width:.5}}
+@media (prefers-reduced-motion:reduce){.fg-is-hit{animation:none;opacity:1}.fg-is-hit .fg-is-card{animation:none}}`;
+	return { svg, css };
+}
+
+// built-in calculator: the search bar, a sum typed into it, and the answer arriving in blue just after the equals sign.
+function calculator(): Figure {
+	const CYCLE = 8;
+	const START = 0.7; // first key, seconds into the loop
+	const STEP = 0.06; // seconds between keys
+	const expr = 'sqrt(1764) * (2^8 - 19) / 7 =';
+	const answer = '1422';
+
+	let chars = '';
+	let keys = '';
+	[...expr].forEach((ch, i) => {
+		chars += `<tspan class="fg-ca-ch fg-ca-c${i}" style="--i:${i}">${ch}</tspan>`;
+		// Each key has its own keyframes: all of them fade out together at the end of the loop.
+		const at = (((START + i * STEP) / CYCLE) * 100).toFixed(2);
+		keys += `.fg-ca-c${i}{animation-name:fg-ca${i}}@keyframes fg-ca${i}{0%,${at}%{fill-opacity:0}${(+at + 0.4).toFixed(2)}%,90%{fill-opacity:1}93%,100%{fill-opacity:0}}\n`;
+	});
+
+	// The bar as in the app: black, a text row over a row with the hint and the settings gear.
+	const svg =
+		`<g class="fg-ca-bar"><rect x="20" y="62" width="300" height="66" rx="12" class="fg-ca-bg"/>` +
+		`<rect x="20.5" y="62.5" width="299" height="65" rx="11.5" class="fg-ca-ring"/></g>` +
+		`<text class="fg-ca-t fg-ca-ph" x="32" y="86.5">what should i look for you?</text>` +
+		`<text class="fg-ca-t" x="32" y="86.5">${chars}<tspan class="fg-ca-ans"> ${answer}</tspan></text>` +
+		`<rect x="29" y="101" width="100" height="16" rx="5" class="fg-ca-pill"/>` +
+		`<text class="fg-ca-hint" x="35" y="112"><tspan class="fg-ca-slash">/</tspan> to search the web</text>` +
+		`<path class="fg-ca-gear" transform="translate(295 101) scale(${16 / 256})" d="${gear}"/>`;
+
+	const css = `
+.fg-ca-bg{fill:#fff}
+.fg-ca-ring{fill:none;stroke:#000;stroke-opacity:.1}
+.fg-ca-pill{fill:none;stroke:#000;stroke-opacity:.15}
+.fg-ca-hint{font-size:9px;fill:#000;fill-opacity:.6}
+.fg-ca-slash{fill:#0070f3;font-weight:600}
+.fg-ca-gear{fill:#000;fill-opacity:.55}
+.fg-ca-t{font-size:13px;fill:#262626;white-space:pre}
+.dark .fg-ca-bg{fill:#000}
+.dark .fg-ca-ring{stroke:#fff}
+.dark .fg-ca-pill{stroke:#fff;stroke-opacity:.25}
+.dark .fg-ca-hint,.dark .fg-ca-gear{fill:#fff;fill-opacity:.7}
+.dark .fg-ca-slash,.dark .fg-ca-ans{fill:#2f8cff}
+.dark .fg-ca-t{fill:#fff}
+.fg-ca-ph{fill:#000;fill-opacity:.4;animation:fg-ca-ph ${CYCLE}s ease-in-out infinite}
+.dark .fg-ca-ph{fill-opacity:.5}
+.fg-ca-ch{fill-opacity:0;animation:${CYCLE}s linear infinite}
+.fg-ca-ans{fill:#0070f3;fill-opacity:0;animation:fg-ca-ans ${CYCLE}s linear infinite}
+@keyframes fg-ca-ph{0%,4%{opacity:1}8%,90%{opacity:0}97%,100%{opacity:1}}
+@keyframes fg-ca-ans{0%,34%{fill-opacity:0}36%,90%{fill-opacity:1}93%,100%{fill-opacity:0}}
+.fg-host:hover .fg-ca-ph{animation:none;opacity:0}
+.fg-host:hover :is(.fg-ca-ch,.fg-ca-ans){animation:none;fill-opacity:1}
+.fg-host.fg-click .fg-ca-ch{animation:fg-ca-in .12s both;animation-delay:calc(var(--i) * .03s)}
+.fg-host.fg-click .fg-ca-ans{animation:fg-ca-in .3s both;animation-delay:1.05s}
+@keyframes fg-ca-in{from{fill-opacity:0}to{fill-opacity:1}}
+${keys}@media (prefers-reduced-motion:reduce){.fg-ca-ph{animation:none;opacity:0}.fg-ca-ch,.fg-ca-ans{animation:none;fill-opacity:1}}`;
+	return { svg, css };
+}
+
 export const figures = {
 	memory: memory(),
 	indexOnce: indexOnce(),
@@ -391,6 +641,10 @@ export const figures = {
 	privateLocal: privateLocal(),
 	idleCpu: idleCpu(),
 	search: search(),
+	altS: altS(),
+	snapOpen: snapOpen(),
+	instantSearch: instantSearch(),
+	calculator: calculator(),
 } satisfies Record<string, Figure>;
 
 export type FigureName = keyof typeof figures;

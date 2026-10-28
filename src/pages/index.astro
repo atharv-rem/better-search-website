@@ -6,6 +6,7 @@ import Logo from '../assets/icons/logo.svg';
 import FileDownload from '../assets/icons/file-download-outline.svg';
 import Changelog from '../components/changelog/Changelog';
 import FeatureFigure from '../components/features/FeatureFigure.astro';
+import type { FigureName } from '../components/features/figures';
 
 const repoUrl = 'https://github.com/atharv-rem/better-search';
 const releaseUrl = `${repoUrl}/releases/latest`;
@@ -17,7 +18,11 @@ const features = [
 	{ text: 'private and local', figure: 'privateLocal' },
 	{ text: '0% idle CPU use', figure: 'idleCpu' },
 	{ text: 'searches in ~ 10 - 100ms', figure: 'search' },
-] as const;
+	{ text: 'alt + s\ninstant opening', figure: 'altS' },
+	{ text: 'snap any window,\nopened or unopened, using keyboard', figure: 'snapOpen' },
+	{ text: 'instant web search\npowered by 4 providers', figure: 'instantSearch' },
+	{ text: 'built-in calculator', figure: 'calculator' },
+] as const satisfies readonly { text: string; figure?: FigureName }[];
 ---
 
 <Layout>
@@ -78,12 +83,14 @@ const features = [
 				class="mt-9 grid grid-cols-1 border-t border-l border-neutral-200 dark:border-neutral-800 sm:grid-cols-[342fr_376fr_332fr]"
 			>
 				{
-					features.map(({ text, figure }) => (
+					features.map((feature) => (
 						<li class="fg-host relative transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-900 flex h-64 flex-col justify-end border-r border-b border-neutral-200 dark:border-neutral-800 p-5 sm:h-[287px]">
-							<div class="absolute inset-x-5 top-5 bottom-[88px]">
-								<FeatureFigure name={figure} />
-							</div>
-							<p class="whitespace-pre-line text-lg font-semibold leading-[1.1] text-black dark:text-neutral-100">{text}</p>
+							{'figure' in feature && (
+								<div class="absolute inset-x-5 top-5 bottom-[88px]">
+									<FeatureFigure name={feature.figure} />
+								</div>
+							)}
+							<p class="whitespace-pre-line text-lg font-semibold leading-[1.1] text-black dark:text-neutral-100">{feature.text}</p>
 						</li>
 					))
 				}
@@ -95,7 +102,7 @@ const features = [
 				changelog <span class="text-neutral-500 dark:text-neutral-400">of every<br />release</span>
 			</h2>
 			<div class="mt-9">
-				<Changelog client:visible />
+				<Changelog client:visible repo="atharv-rem/better-search" />
 			</div>
 		</section>
 	</main>

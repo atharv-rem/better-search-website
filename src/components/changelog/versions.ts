@@ -6,14 +6,14 @@ export interface Release {
 	commits: Commit[];
 }
 
-const authors = {
+export const authors = {
 	me: { name: "Atharv Remeshan", initials: "AR", className: "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900" },
 	gh: { name: "github-actions[bot]", initials: "GH", className: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
 	db: { name: "dependabot[bot]", initials: "DB", className: "bg-sky-500/15 text-sky-700 dark:text-sky-300" },
 };
 
-// Newest first, straight from the repo's history. A release is the tagged commit plus
-// every commit that landed since the previous tag. Add new releases at the top.
+// Static snapshot, shown until the live history loads from the GitHub API (and if it fails).
+// Newest first; a release is the tagged commit plus every commit since the previous tag.
 export const releases: Release[] = [
 	{
 		label: "v0.3.1",
