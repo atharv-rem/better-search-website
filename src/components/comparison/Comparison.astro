@@ -1,0 +1,86 @@
+---
+// Feature-by-feature comparison with Windows Search. Cells use a small inline
+// syntax: **bold** for emphasis and `code` for keys, prefixes and paths.
+const rows: [feature: string, windows: string, betterSearch: string][] = [
+	['Opening search', 'Win+S or the Start menu', '**Alt+S** from anywhere, and you can change it to any shortcut. The window shows in about 30 ms.'],
+	['What it covers', 'Indexes user folders by default; "Enhanced" mode crawls the whole PC slowly', 'Reads every NTFS drive\'s file table directly. A full drive (2M records) is indexed in **about 10 s**.'],
+	['Matching file names', 'Matches mostly from the start of words', '**Any part of a name** (FTS5 trigram index); several words narrow the search (`invoice 2024`)'],
+	['Speed while typing', 'Results can lag or change as web results load', 'Results in **120–170 ms**, and searching never touches the disk'],
+	['Keeping the index current', 'Background crawler', '**A file watcher applies changes instantly** (`ReadDirectoryChangesW`, no CPU use while idle), and changes made while the app was closed are caught at start-up'],
+	['Searching inside files', 'Indexes document contents', 'Uses that same index with a **`\\` prefix**: no second index, and nothing leaves the PC'],
+	['Text in images', '—', '**Optional OCR of screenshots and photos** with Windows\' own text recognition. You pick the folders and can delete the data any time.'],
+	['Ranking', 'Mixes in web and Bing suggestions', 'Exact names first, then apps, shortcuts and folders. **Files you open often rise to the top.**'],
+	['Filtering by type', 'Category tabs (Apps, Documents, Web…)', 'Press **Tab** to cycle folders, documents, images, videos, audio, code, archives and apps'],
+	['Previews', 'Explorer preview pane, side panel in Start', '**Shown right above the search bar**: photos, video frames, PDF and Office pages, code and text, and **.docx without Office installed**'],
+	['Opening a result', 'Click or Enter', '**Enter** opens it, **Ctrl+Enter** shows it in Explorer, and you can swap the two'],
+	['Calculator', 'Basic math, often through Bing', '**`=` prefix**, works offline, with exact decimals, units and percentages. Enter copies the answer.'],
+	['Web search', 'Bing in Edge only', '**Google, Bing, DuckDuckGo, Brave or a custom URL**, or straight to ChatGPT, Claude, Perplexity or Google AI Mode. You pick the browser and **Tab** switches it.'],
+	['Web results inside the window', 'Bing results', 'Bring your own key for **Exa, Firecrawl, TinyFish or Context.dev**, with usage shown in settings'],
+	['AI answers', 'Copilot is a separate app', '**Answers stream right into the search window** from 10 providers (Gemini, Groq, OpenRouter, GitHub, OpenAI, Anthropic, DeepSeek, Perplexity) or **local models (Ollama, LM Studio)**'],
+	['Typing a website address', 'Sends it to Bing', 'Type `github.com` to **open it directly** in your browser'],
+	['Snapping windows', 'Snap layouts by hovering or Win+Z, one window at a time', '**Alt+W** fills a whole layout from the keyboard. It can **launch apps or open files into each spot**, and it respects the taskbar.'],
+	['Exclusions', 'Excluded folders list', 'Exclude drives, full paths, or **folder names wherever they appear**. Caches and build folders (`node_modules`, `.git`, `WinSxS`) are skipped by default.'],
+	['Where the index lives', 'Fixed on the system drive', '**Can move to another drive** and still cover all of them'],
+	['Memory use', 'Runs as a permanent system service', '**9–17 MB in the background**, and the search helper frees its memory when the window hides'],
+	['Privacy', 'Sends queries to Bing by default', '**Everything stays local** unless you add your own web or AI key. Keys are stored in Windows Credential Manager.'],
+	['Recent searches', 'Recent and top apps', 'Lists your last searches, and **turning it off also clears the stored history**'],
+	['Interface size', 'Follows display scaling', 'Its own size setting **on top of** Windows\' display scaling'],
+	['Troubleshooting', 'Indexer troubleshooter', '**Logs in the settings window**, and you can rebuild the index with one click'],
+];
+
+type Segment = { text: string; bold: boolean; code: boolean };
+
+// Splits a cell on ** and ` markers into styled runs. Markers may nest (**`=` prefix**).
+function parse(source: string): Segment[] {
+	const segments: Segment[] = [];
+	let bold = false;
+	let code = false;
+	for (const part of source.split(/(\*\*|`)/)) {
+		if (part === '**') bold = !bold;
+		else if (part === '`') code = !code;
+		else if (part) segments.push({ text: part, bold, code });
+	}
+	return segments;
+}
+
+const cell = 'border-r border-b border-neutral-200 p-5 transition-colors group-hover:bg-neutral-100 dark:border-neutral-800 dark:group-hover:bg-neutral-900';
+const label = 'mb-1.5 block text-xs font-medium tracking-wide uppercase sm:hidden';
+---
+
+<div
+	role="table"
+	aria-label="Windows Search compared with Better Search"
+	class="grid grid-cols-1 border-t border-l border-neutral-200 dark:border-neutral-800 sm:grid-cols-[232fr_376fr_522fr]"
+>
+	<div role="row" class="hidden sm:contents">
+		<span role="columnheader" class:list={[cell, 'text-sm font-medium text-neutral-400 dark:text-neutral-500']}>feature</span>
+		<span role="columnheader" class:list={[cell, 'text-sm font-medium text-neutral-400 dark:text-neutral-500']}>windows search</span>
+		<span role="columnheader" class:list={[cell, 'text-sm font-medium text-[#0070f3]']}>better search</span>
+	</div>
+	{
+		rows.map(([feature, windows, betterSearch]) => (
+			<div role="row" class="group grid sm:contents">
+				<span role="rowheader" class:list={[cell, 'text-lg leading-[1.1] font-semibold text-black max-sm:bg-neutral-100 max-sm:py-4 dark:text-neutral-100 max-sm:dark:bg-neutral-900']}>
+					{feature}
+				</span>
+				<span role="cell" class:list={[cell, 'text-[15px] leading-6 text-neutral-500 max-sm:border-b-0 max-sm:pb-3 dark:text-neutral-400']}>
+					<span class:list={[label, 'text-neutral-400 dark:text-neutral-500']}>windows search</span>
+					{windows}
+				</span>
+				<span role="cell" class:list={[cell, 'text-[15px] leading-6 text-neutral-700 dark:text-neutral-300']}>
+					<span class:list={[label, 'text-[#0070f3]']}>better search</span>
+					{parse(betterSearch).map(({ text, bold, code }) => {
+						const weight = bold ? 'font-semibold text-black dark:text-neutral-100' : '';
+						return code ? (
+							<code class:list={['rounded bg-neutral-100 px-1 py-0.5 font-mono text-[13px] dark:bg-neutral-800', weight]}>{text}</code>
+						) : bold ? (
+							<strong class={weight}>{text}</strong>
+						) : (
+							text
+						);
+					})}
+				</span>
+			</div>
+		))
+	}
+</div>

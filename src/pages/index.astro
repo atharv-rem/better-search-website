@@ -5,6 +5,7 @@ import GithubLogo from '../assets/icons/GithubLogo.svg';
 import Logo from '../assets/icons/logo.svg';
 import FileDownload from '../assets/icons/file-download-outline.svg';
 import Changelog from '../components/changelog/Changelog';
+import Comparison from '../components/comparison/Comparison.astro';
 import FeatureFigure from '../components/features/FeatureFigure.astro';
 import type { FigureName } from '../components/features/figures';
 
@@ -22,6 +23,8 @@ const features = [
 	{ text: 'snap any window,\nopened or unopened, using keyboard', figure: 'snapOpen' },
 	{ text: 'instant web search\npowered by 4 providers', figure: 'instantSearch' },
 	{ text: 'built-in calculator', figure: 'calculator' },
+	{ text: 'find any document\nby what it says', figure: 'docContent' },
+	{ text: 'find any image\nby what is in it', figure: 'imageContent' },
 ] as const satisfies readonly { text: string; figure?: FigureName }[];
 ---
 
@@ -95,6 +98,15 @@ const features = [
 					))
 				}
 			</ul>
+		</section>
+
+		<section class="mt-24 sm:mt-[150px]" aria-labelledby="comparison-heading">
+			<h2 id="comparison-heading" class="thin-display font-display text-3xl leading-[1.05] tracking-tight text-neutral-800 dark:text-neutral-100 sm:text-[2.6rem]">
+				better search <span class="text-neutral-500 dark:text-neutral-400">vs<br />windows search</span>
+			</h2>
+			<div class="mt-9">
+				<Comparison />
+			</div>
 		</section>
 
 		<section class="mt-24 sm:mt-[150px]" aria-labelledby="changelog-heading">

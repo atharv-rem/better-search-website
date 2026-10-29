@@ -634,6 +634,137 @@ ${keys}@media (prefers-reduced-motion:reduce){.fg-ca-ph{animation:none;opacity:0
 	return { svg, css };
 }
 
+// find any document by what it says: each line is read in turn until one matches, then that page lifts with the line highlighted.
+function docContent(): Figure {
+	const k = iso(60, 50);
+	const W = 44;
+	const D = 58;
+	const H = 2.5;
+	const HIT = { doc: 1, line: 2 };
+	const titles = [26, 22, 28];
+	const lengths = [
+		[38, 34, 38, 26, 36, 30],
+		[36, 38, 32, 38, 28, 34],
+		[34, 38, 30, 36, 38, 24],
+	];
+	const ly = (i: number) => 16 + i * 6;
+	const mark = (i: number, end: number, cls: string, extra = '') =>
+		`<rect class="${cls}" ${extra} x="4.5" y="${ly(i) - 2.5}" width="${end - 3}" height="5" rx="1"/>`;
+
+	let svg = '';
+	let step = 0;
+	lengths.forEach((row, d) => {
+		const x = d * 56;
+		// Lines are read in order and the read stops at the match, so later pages are never reached.
+		let scan = '';
+		row.forEach((end, i) => {
+			if (d < HIT.doc || (d === HIT.doc && i < HIT.line)) scan += mark(i, end, 'fg-dc-scan', `style="--k:${step++}"`);
+		});
+		const hit = d === HIT.doc;
+		const lines = row.map((end, i) => `M6 ${ly(i)}H${end}`).join('');
+		svg +=
+			`<g${hit ? ' class="fg-dc-lift"' : ''}>` +
+			k.box(x + 2, -4, 0, W, D, 2) +
+			k.box(x, 0, 0, W, D, H) +
+			`<g transform="${k.TOP(x, 0, H)}">` +
+			`<g class="glow">${scan}${hit ? mark(HIT.line, row[HIT.line], 'fg-dc-hit') : ''}</g>` +
+			`<path class="k" stroke-width="1.6" d="M6 9H${titles[d]}"/><path class="d" d="${lines}"/>` +
+			(hit
+				? `<path class="w fg-dc-hit" d="M6 ${ly(HIT.line)}H${row[HIT.line]}"/>` +
+					`<g class="glow"><rect class="fg-dc-edge" width="${W}" height="${D}"/></g>`
+				: '') +
+			`</g></g>`;
+	});
+
+	// The match lands when its line comes up in the scan: 0.3s in, a line every 0.18s, over a 6s loop.
+	const at = ((0.3 + step * 0.18) / 6) * 100;
+	const css = `
+.fg-dc-scan{fill:var(--fg-acc);opacity:0;animation:fg-dc-scan 6s linear infinite;animation-delay:calc(var(--k) * .18s + .3s)}
+@keyframes fg-dc-scan{0%{opacity:0}1%{opacity:.85}4%,100%{opacity:0}}
+.fg-dc-hit,.fg-dc-edge{opacity:0;animation:fg-dc-hit 6s linear infinite}
+.fg-dc-hit{fill:var(--fg-acc)}
+.fg-dc-edge{fill:none;stroke:var(--fg-acc);stroke-width:1.4}
+.fg-dc-lift{animation:fg-dc-lift 6s cubic-bezier(.2,.8,.2,1) infinite}
+@keyframes fg-dc-hit{0%,${at.toFixed(1)}%{opacity:0}${(at + 1.5).toFixed(1)}%,88%{opacity:1}94%,100%{opacity:0}}
+@keyframes fg-dc-lift{0%,${at.toFixed(1)}%{transform:none}${(at + 5).toFixed(1)}%,88%{transform:translateY(-6px)}96%,100%{transform:none}}
+.fg-host:hover :is(.fg-dc-hit,.fg-dc-edge){animation:none;opacity:1}
+.fg-host:hover .fg-dc-lift{animation:none;transform:translateY(-6px)}
+.fg-host:hover .fg-dc-scan{animation:none}
+.fg-dc-lift{transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.fg-host.fg-click .fg-dc-scan{animation:fg-dc-scan1 .3s linear both;animation-delay:calc(var(--k) * .07s)}
+.fg-host.fg-click :is(.fg-dc-hit,.fg-dc-edge){animation:fg-dc-hit1 1.7s linear .56s both}
+.fg-host.fg-click .fg-dc-lift{animation:fg-dc-lift1 1.7s cubic-bezier(.2,.8,.2,1) .56s both}
+@keyframes fg-dc-scan1{0%{opacity:0}20%{opacity:.85}100%{opacity:0}}
+@keyframes fg-dc-hit1{0%{opacity:0}6%,100%{opacity:1}}
+@keyframes fg-dc-lift1{0%{transform:none}20%,100%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.fg-dc-hit,.fg-dc-edge{opacity:1}.fg-dc-lift{transform:translateY(-6px)}}`;
+	return { svg: fit(svg, 105, 100, 1.3), css };
+}
+
+// find any image by what is in it: a detection box hops across the photos and locks onto the one that shows the query.
+function imageContent(): Figure {
+	const k = iso(74, 48);
+	const W = 40;
+	const D = 32;
+	const H = 2.5;
+	const HIT = 4;
+	// Hairline pictures in a tile's own 40x32 units: tree, house, waves / person, mountains at sunset, car.
+	const pics = [
+		`<path d="M20 27V17M6 27H34"/><circle cx="20" cy="12" r="6"/>`,
+		`<path d="M11 27V16L20 8L29 16V27ZM17 27V21H23V27"/>`,
+		`<path d="M4 13q4 -4 8 0t8 0t8 0t8 0M4 20q4 -4 8 0t8 0t8 0t8 0"/>`,
+		`<circle cx="20" cy="11" r="4"/><path d="M11 27a9 9 0 0 1 18 0"/>`,
+		`<path d="M4 27L14 14L20 21L26 12L36 27"/><circle cx="29" cy="7" r="3"/>`,
+		`<path d="M6 22H34V17H28L24 11H14L10 17H6Z"/><circle cx="12" cy="23" r="3"/><circle cx="28" cy="23" r="3"/>`,
+	];
+	const at = (i: number): [number, number] => [(i % 3) * 50, Math.floor(i / 3) * 42];
+	const shift = (i: number) => {
+		const [x, y] = at(i);
+		return [((x - y) * 0.866).toFixed(1), ((x + y) * 0.5).toFixed(1)];
+	};
+
+	let svg = '';
+	pics.forEach((pic, i) => {
+		const [x, y] = at(i);
+		const hit = i === HIT;
+		svg +=
+			`<g${hit ? ' class="fg-im-lift"' : ''}>` +
+			k.box(x, y, 0, W, D, H) +
+			`<g transform="${k.TOP(x, y, H)}"><rect class="d" x="2" y="2" width="${W - 4}" height="${D - 4}" rx="1"/><g class="k">${pic}</g>` +
+			(hit ? `<g class="glow fg-im-hit"><g class="fg-im-pic">${pic}</g><rect class="fg-im-edge" width="${W}" height="${D}"/></g>` : '') +
+			`</g></g>`;
+	});
+	// The bracket is drawn on the first tile and moved by the tile offsets, so it sits over every tile in turn.
+	svg += `<g class="fg-im-br"><g class="glow" transform="${k.TOP(0, 0, H + 0.5)}"><path class="fg-im-brk" d="M3 9V3H9M31 3H37V9M37 23V29H31M9 29H3V23"/></g></g>`;
+
+	// Visit tiles 0, 1, 2, 3 for 8% of the loop each, then lock on the match.
+	const t = (i: number) => `translate(${shift(i).join('px,')}px)`;
+	const [hx, hy] = shift(HIT);
+	const locked = `translate(${hx}px,${(+hy - 6).toFixed(1)}px)`;
+	const hops = [0, 1, 2, 3].map((i) => `${4 + i * 12}%,${12 + i * 12}%{transform:${t(i)}}`).join('');
+	const css = `
+.fg-im-brk{fill:none;stroke:var(--fg-acc);stroke-width:1.6;stroke-linecap:round}
+.fg-im-pic{fill:none;stroke:var(--fg-acc);stroke-width:1.6}
+.fg-im-edge{fill:none;stroke:var(--fg-acc);stroke-width:1.4}
+.fg-im-br{opacity:0;animation:fg-im-br 6s cubic-bezier(.5,0,.2,1) infinite}
+@keyframes fg-im-br{0%{opacity:0;transform:${t(0)}}4%{opacity:1}${hops}52%,56%{transform:${t(HIT)}}60%,88%{opacity:1;transform:${locked}}94%,100%{opacity:0;transform:${locked}}}
+.fg-im-hit{opacity:0;animation:fg-im-hit 6s linear infinite}
+@keyframes fg-im-hit{0%,56%{opacity:0}60%,88%{opacity:1}94%,100%{opacity:0}}
+.fg-im-lift{animation:fg-im-lift 6s cubic-bezier(.2,.8,.2,1) infinite}
+@keyframes fg-im-lift{0%,56%{transform:none}60%,88%{transform:translateY(-6px)}96%,100%{transform:none}}
+.fg-host:hover .fg-im-hit{animation:none;opacity:1}
+.fg-host:hover .fg-im-lift{animation:none;transform:translateY(-6px)}
+.fg-host:hover .fg-im-br{animation:none;opacity:1;transform:${locked}}
+.fg-host.fg-click .fg-im-br{animation:fg-im-br1 1.6s cubic-bezier(.5,0,.2,1) both}
+.fg-host.fg-click .fg-im-hit{animation:fg-im-in .3s linear 1.1s both}
+.fg-host.fg-click .fg-im-lift{animation:fg-im-up .4s cubic-bezier(.2,.8,.2,1) 1.1s both}
+@keyframes fg-im-br1{0%{opacity:1;transform:${t(0)}}20%{transform:${t(1)}}40%{transform:${t(2)}}60%{transform:${t(3)}}75%{transform:${t(HIT)}}100%{opacity:1;transform:${locked}}}
+@keyframes fg-im-in{from{opacity:0}to{opacity:1}}
+@keyframes fg-im-up{from{transform:none}to{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.fg-im-hit,.fg-im-br{opacity:1}.fg-im-br{transform:${locked}}.fg-im-lift{transform:translateY(-6px)}}`;
+	return { svg: fit(svg, 102, 100, 1.3), css };
+}
+
 export const figures = {
 	memory: memory(),
 	indexOnce: indexOnce(),
@@ -645,6 +776,8 @@ export const figures = {
 	snapOpen: snapOpen(),
 	instantSearch: instantSearch(),
 	calculator: calculator(),
+	docContent: docContent(),
+	imageContent: imageContent(),
 } satisfies Record<string, Figure>;
 
 export type FigureName = keyof typeof figures;
